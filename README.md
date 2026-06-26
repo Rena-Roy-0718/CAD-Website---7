@@ -271,8 +271,8 @@ No installation required.
 2. Open `index.html` in any modern browser (Chrome, Firefox, Edge, Safari)
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/Rena-Roy-0718/CAD-Website---7
+cd CAD-Website---7
 open index.html
 ```
 

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CAD Tool v8</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="topbar">
+  <span class="tlbl">Shape</span>
+  <div id="sbtns" style="display:flex;gap:2px">
+    <button class="sbtn active" data-shape="triangle"  title="Triangle">△</button>
+    <button class="sbtn" data-shape="line"      title="Line">╱</button>
+    <button class="sbtn" data-shape="curve"     title="Curve">⌒</button>
+    <button class="sbtn" data-shape="rect"      title="Rectangle">▭</button>
+    <button class="sbtn" data-shape="square"    title="Square">□</button>
+    <button class="sbtn" data-shape="circle"    title="Circle">○</button>
+    <button class="sbtn" data-shape="ellipse"   title="Ellipse">⬭</button>
+    <button class="sbtn" data-shape="pentagon"  title="Pentagon">⬠</button>
+    <button class="sbtn" data-shape="hexagon"   title="Hexagon">⬡</button>
+    <button class="sbtn" data-shape="arrow"     title="Arrow">→</button>
+    <button class="sbtn" data-shape="star"      title="Star">★</button>
+    <button class="sbtn" data-shape="dimension" title="Dimension" style="font-size:11px;width:36px">↔dim</button>
+  </div>
+
+  <div class="sep"></div>
+  <button class="ubtn" id="btn-undo" onclick="undo()" disabled>↩ Undo</button>
+  <button class="ubtn" id="btn-redo" onclick="redo()" disabled>↪ Redo</button>
+
+  <div class="sep"></div>
+  <!-- Snap mode toggles (new) -->
+  <span class="tlbl">Snap</span>
+  <button class="ubtn snap-active" id="btn-grid-snap"  onclick="toggleOSnap('grid')"    title="Grid snap">⊞ Grid</button>
+  <button class="ubtn snap-active" id="btn-end-snap"   onclick="toggleOSnap('endpoint')"  title="Endpoint snap">◆ End</button>
+  <button class="ubtn snap-active" id="btn-mid-snap"   onclick="toggleOSnap('midpoint')"  title="Midpoint snap">◇ Mid</button>
+  <button class="ubtn snap-active" id="btn-int-snap"   onclick="toggleOSnap('intersection')" title="Intersection snap">✕ Int</button>
+
+  <div class="sep"></div>
+  <!-- Mode indicator (new) -->
+  <div id="mode-pill" style="display:flex;align-items:center;gap:5px;padding:0 10px;height:26px;border-radius:5px;background:#deeeff;border:1px solid #aaccff;font-size:11px;font-weight:700;color:#1558a8;flex-shrink:0">
+    <span id="mode-icon">✏️</span>
+    <span id="mode-label">DRAW</span>
+  </div>
+  <div style="font-size:10px;color:#aaa;flex-shrink:0">V = select</div>
+
+  <div class="sep"></div>
+  <span class="tlbl">System</span>
+  <div class="ugw">
+    <button class="ugb active" onclick="setGroup('metric',this)">Metric</button>
+    <button class="ugb"        onclick="setGroup('imperial',this)">Imperial</button>
+    <button class="ugb"        onclick="setGroup('pixel',this)">Pixels</button>
+  </div>
+  <span class="tlbl" style="margin-left:5px">Unit</span>
+  <select id="usel" onchange="A.unit=this.value;drawRulers();redraw()">
+    <option value="mm">mm</option>
+    <option value="cm" selected>cm</option>
+    <option value="m">m</option>
+  </select>
+  <div class="sep"></div>
+  <span class="tlbl">Scale 1:</span>
+  <select id="dsel" onchange="A.dscale=+this.value;drawRulers();redraw()">
+    <option value="1">1</option><option value="5">5</option><option value="10">10</option>
+    <option value="20">20</option><option value="50" selected>50</option>
+    <option value="100">100</option><option value="200">200</option><option value="500">500</option>
+  </select>
+  <div class="sep"></div>
+  <span class="tlbl">Sheet</span>
+  <select id="shsel" onchange="initSheet(this.value)">
+    <option value="A4">A4</option><option value="A3" selected>A3</option>
+    <option value="A2">A2</option><option value="A1">A1</option><option value="A0">A0</option>
+  </select>
+  <div class="sep mla"></div>
+  <span class="tlbl">Zoom</span>
+  <button class="zbtn" onclick="doZoom(-1)">−</button>
+  <span id="zlbl">100%</span>
+  <button class="zbtn" onclick="doZoom(+1)">+</button>
+  <button class="zbtn" style="width:auto;padding:0 7px;font-size:11px" onclick="zoomFit()">Fit</button>
+</div>
+
+<div id="body">
+  <div id="sidebar">
+    <div class="pnl" id="layers-panel">
+      <div class="pt">Layers</div>
+      <div id="layer-list"></div>
+      <button id="add-layer-btn" onclick="addLayer()">+ Add layer</button>
+    </div>
+    <div class="pnl">
+      <div class="pt">Fill</div>
+      <div class="seg" id="fseg">
+        <button class="active" data-v="filled" onclick="setFill('filled',this)">Filled</button>
+        <button data-v="hollow" onclick="setFill('hollow',this)">Hollow</button>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pt">Colour</div>
+      <div class="cg" id="cgrid"></div>
+      <div class="rw" style="margin-top:8px">
+        <label style="font-size:12px;color:#555">Custom</label>
+        <input type="color" id="cc" value="#1558a8">
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pt">Stroke</div>
+      <div class="rw"><label>Width</label><input type="range" id="skr" min="1" max="16" value="2"><span class="v" id="skv">2</span></div>
+    </div>
+    <div class="pnl">
+      <div class="pt">Transform</div>
+      <div class="rw">
+        <label>Angle</label>
+        <input type="range" id="rot-slider" min="0" max="360" value="0" style="flex:1">
+        <span class="v" id="rot-val">0°</span>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pt">Grid</div>
+      <div class="rw">
+        <label style="min-width:50px">Show</label>
+        <select id="gridvis" onchange="A.gridVisible=this.value==='on';redraw()">
+          <option value="on" selected>Visible</option>
+          <option value="off">Hidden</option>
+        </select>
+      </div>
+      <div class="rw">
+        <label style="min-width:50px">Div</label>
+        <select id="snapdiv" onchange="A.snapDivisions=+this.value">
+          <option value="1">Major</option>
+          <option value="2">1/2</option>
+          <option value="5" selected>1/5</option>
+          <option value="10">1/10</option>
+        </select>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pt">Coordinates</div>
+      <div class="inf">
+        X: <b id="ix">—</b><br>
+        Y: <b id="iy">—</b><br>
+        W: <b id="iw">—</b><br>
+        H: <b id="ih">—</b><br>
+        ∠: <b id="ia">—</b><br>
+        Snap: <b id="isnap">—</b>
+      </div>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pt">Saved</div>
+      <div class="sl" id="slist"><p class="emp">Nothing saved yet.</p></div>
+    </div>
+  </div>
+
+  <div id="carea">
+    <div id="rrow">
+      <div id="corner"></div>
+      <div id="rh-out"><canvas id="rh" height="24"></canvas></div>
+    </div>
+    <div id="mrow">
+      <div id="rv-out"><canvas id="rv" width="24"></canvas></div>
+      <div id="vp">
+        <div id="sheet-host">
+          <canvas id="sc"></canvas>
+          <!-- rubber-band selection box -->
+          <div id="sel-box"></div>
+          <div id="handle-layer" style="position:absolute;top:0;left:0;pointer-events:none;width:100%;height:100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- floating toolbar -->
+<div id="ftb">
+  <button onclick="copyShape()"      title="Ctrl+C">⎘ Copy</button>
+  <button onclick="pasteShape()"     title="Ctrl+V">⎙ Paste</button>
+  <button onclick="duplicateShape()" title="Ctrl+D">⧉ Duplicate</button>
+  <div class="sep-v"></div>
+  <button onclick="saveShape()">💾 Save</button>
+  <button onclick="clearAll()">Clear</button>
+  <button class="danger" onclick="deleteSelected()" title="Del">🗑 Delete</button>
+</div>
+
+<!-- right-click context menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="copyShape();hideCtx()">Copy <span class="shortcut">Ctrl+C</span></div>
+  <div class="ctx-item" onclick="pasteShape();hideCtx()">Paste <span class="shortcut">Ctrl+V</span></div>
+  <div class="ctx-item" onclick="duplicateShape();hideCtx()">Duplicate <span class="shortcut">Ctrl+D</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="saveShape();hideCtx()">Save shape</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="deleteSelected();hideCtx()">Delete <span class="shortcut">Del</span></div>
+</div>
+
+<!-- multi-select badge -->
+<div id="multi-badge"></div>
+<!-- snap type badge follows cursor -->
+<div id="snap-badge"></div>
+<!-- coordinate badge -->
+<div id="coord-badge"></div>
+<div id="status">Pick a shape then click-and-drag on the sheet to draw</div>
+
+<script src="script.js"></script>
+</body>
+</html>
